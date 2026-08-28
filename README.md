@@ -61,6 +61,19 @@ Explorer:
 
 https://explorer-studio.genlayer.com/address/0xD73E8602FD5467577e8441Cdb25F5521B4A61530
 
+
+## Public links
+
+```text
+GitHub: https://github.com/nikvn89/OwnThePromise
+Live dApp: https://own-the-promise.vercel.app/
+Contract: 0xD73E8602FD5467577e8441Cdb25F5521B4A61530
+```
+
+Explorer:
+
+https://explorer-studio.genlayer.com/address/0xD73E8602FD5467577e8441Cdb25F5521B4A61530
+
 ## Product flow
 
 1. Create a register with a name, declared author role, and required commitment quota.
@@ -221,6 +234,57 @@ http://localhost:5173/
 ```text
 VITE_CONTRACT_ADDRESS=0xD73E8602FD5467577e8441Cdb25F5521B4A61530
 VITE_RPC_PATH=/api/rpc
+```
+
+
+## Observed Vercel production evidence
+
+Live deployment:
+
+```text
+https://own-the-promise.vercel.app/
+```
+
+Production register:
+
+```text
+Vercel demo 01
+author role = Platform Team
+required commitments = 1
+```
+
+Observed production flow:
+
+```text
+create register
+-> OPEN
+-> recorded_count = 0
+-> owned_count = 0 / 1
+
+"The vendor says it will publish the migration plan before production cutover."
+-> NOT_AUTHOR_COMMITMENT
+-> recorded_count = 1
+-> owned_count = 0 / 1
+-> OPEN
+
+"The undersigned undertakes to publish the migration plan before cutover."
+-> AUTHOR_COMMITMENT
+-> recorded_count = 2
+-> owned_count = 1 / 1
+-> QUOTA_MET
+
+freeze_register
+-> FROZEN
+-> recorded_count = 2
+-> owned_count = 1 / 1
+```
+
+The production frontend also showed the accepted statement history and disabled further statement submission after `FROZEN`.
+
+Result:
+
+```text
+PRODUCTION VERCEL FLOW PASS
 ```
 
 ## Important limitation

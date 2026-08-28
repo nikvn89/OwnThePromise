@@ -19,28 +19,41 @@ Long calldata >255-byte write          PASS
 Accepted-state status messaging        PASS
 ```
 
-## Production Vercel verification — pending
+## Production Vercel verification
 
-Do not mark production PASS until the deployed Vercel app is tested.
-
-After deployment, perform this short regression:
-
-1. Connect MetaMask on StudioNet.
-2. Load the existing `Frontend long 01` register or create one fresh register.
-3. Verify accepted state renders correctly.
-4. Submit one statement and confirm the accepted-state refresh lands.
-5. Open the Statements tab and confirm the contract-returned verdict appears.
-
-Also confirm:
+Live:
 
 ```text
-/api/rpc works on the Vercel domain
-no CORS failure
-no duplicate MetaMask prompt
-no false-success message
-wallet/account switch clears stale loaded state
-official GenLayer logo renders
-OwnThePromise logo renders
+https://own-the-promise.vercel.app/
 ```
 
-Only after those observations should production Vercel be marked PASS.
+Observed production regression:
+
+```text
+Connect MetaMask                       PASS
+Create register                        PASS
+Load accepted OPEN state               PASS
+NOT_AUTHOR_COMMITMENT render           PASS
+AUTHOR_COMMITMENT render               PASS
+QUOTA_MET render                       PASS
+Freeze write                           PASS
+FROZEN accepted state                  PASS
+Statements tab                         PASS
+Frozen statement-submit lock           PASS
+```
+
+Production register:
+
+```text
+Vercel demo 01
+```
+
+Final observed state:
+
+```text
+FROZEN
+recorded_count = 2
+owned_count = 1 / 1
+```
+
+No production failure was observed in this tested flow.

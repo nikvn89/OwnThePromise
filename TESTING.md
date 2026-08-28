@@ -245,3 +245,131 @@ quota outside 0..10
 ```
 
 Those should not be described as frontend runtime PASS unless separately observed.
+
+
+## Vercel production regression
+
+Live:
+
+```text
+https://own-the-promise.vercel.app/
+```
+
+GitHub:
+
+```text
+https://github.com/nikvn89/OwnThePromise
+```
+
+### Production Test 1 — Create register
+
+Input:
+
+```text
+name = Vercel demo 01
+author role = Platform Team
+required commitments = 1
+```
+
+Observed:
+
+```text
+OPEN
+recorded_count = 0
+owned_count = 0
+required_commitments = 1
+```
+
+Result:
+
+```text
+PASS
+```
+
+### Production Test 2 — NOT_AUTHOR_COMMITMENT
+
+Submitted:
+
+```text
+The vendor says it will publish the migration plan before production cutover.
+```
+
+Observed in the Statements tab:
+
+```text
+NOT_AUTHOR_COMMITMENT
+Stored, does not count
+```
+
+Accepted register state remained:
+
+```text
+OPEN
+recorded_count = 1
+owned_count = 0
+```
+
+Result:
+
+```text
+PASS
+```
+
+### Production Test 3 — AUTHOR_COMMITMENT / QUOTA_MET
+
+Submitted:
+
+```text
+The undersigned undertakes to publish the migration plan before cutover.
+```
+
+Observed:
+
+```text
+QUOTA_MET
+recorded_count = 2
+owned_count = 1
+required_commitments = 1
+```
+
+Result:
+
+```text
+PASS
+```
+
+### Production Test 4 — Freeze
+
+Creator executed `freeze_register`.
+
+Observed:
+
+```text
+FROZEN
+recorded_count = 2
+owned_count = 1
+```
+
+The production UI disabled further statement submission.
+
+Result:
+
+```text
+PASS
+```
+
+### Production conclusion
+
+Observed end-to-end Vercel flow:
+
+```text
+Create register                 PASS
+NOT_AUTHOR_COMMITMENT           PASS
+AUTHOR_COMMITMENT               PASS
+QUOTA_MET                       PASS
+Freeze                          PASS
+FROZEN accepted state           PASS
+Statements rendering            PASS
+Frozen submit lock              PASS
+```
+
