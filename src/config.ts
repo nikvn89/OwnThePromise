@@ -1,6 +1,6 @@
 export const CONTRACT_ADDRESS = (
   import.meta.env.VITE_CONTRACT_ADDRESS ||
-  "0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB"
+  "0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc"
 ) as `0x${string}`;
 
 export const RPC_PATH = import.meta.env.VITE_RPC_PATH || "/api/rpc";

@@ -12,7 +12,7 @@ Vercel v1.1 runtime: NOT RUN
 The frontend is pinned to the v1.1 Project deployment:
 
 ```text
-0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
+0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
 ```
 
 ## Local checks

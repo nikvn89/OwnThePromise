@@ -9,7 +9,7 @@ const app = read("src/App.tsx");
 const config = read("src/config.ts");
 const envExample = read(".env.example");
 const expectedContractSha256 = "50b56198975167d8ff11328be0f7f5cb01329ad48a884fa27ae5e6bc7c2314d9";
-const expectedContractAddress = "0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB";
+const expectedContractAddress = "0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc";
 
 const actualContractSha256 = createHash("sha256").update(contract).digest("hex");
 if (actualContractSha256 !== expectedContractSha256) {

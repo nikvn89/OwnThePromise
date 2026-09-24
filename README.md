@@ -13,7 +13,7 @@ The product is **OwnThePromise**. Its Intelligent Contract class is **Attributio
 | StudioNet deployment | PASS — GenVM SUCCESS |
 | Accepted `get_config` identity | PASS — OwnThePromise / AttributionGate / 1.1 |
 | StudioNet runtime proof | NOT RUN |
-| Vercel deployment | PENDING |
+| Vercel deployment | PENDING REDEPLOY with current contract address |
 | Submission readiness | NOT READY until runtime hashes are recorded |
 
 Exact contract source:
@@ -30,14 +30,14 @@ py-genlayer: v0.2 dependency header
 StudioNet deployment:
 
 ```text
-Address: 0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
-Deploy transaction: 0xa53682819d9bd0a29fc4a824928ff67925cb03fecc72eeed7ec95bad21417447
+Address: 0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
+Deploy transaction: 0x764f837116f8b0437deb3d5927e51d25d395eb3b5b38317923b3bd0bb4c9e372
 Execution: GenVM SUCCESS
 Consensus: Accepted
 get_config: project_name=OwnThePromise, contract_name=AttributionGate, version=1.1
 ```
 
-Explorer: https://explorer-studio.genlayer.com/address/0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
+Explorer: https://explorer-studio.genlayer.com/address/0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
 
 The deployment and configuration identity are verified. The business runtime flow is still pending and is not claimed as PASS.
 
@@ -121,14 +121,10 @@ npm run check
 Environment:
 
 ```text
-VITE_CONTRACT_ADDRESS=0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
+VITE_CONTRACT_ADDRESS=0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
 VITE_RPC_PATH=/api/rpc
 ```
 
 ## Calldata probe limitation
 
 `tools/probe-calldata.mjs` uses `eth_estimateGas` against the consensus entrypoint. An OK response proves only that the EVM entrypoint received that serialized payload. It does **not** prove GenVM decoding, authorization, semantic execution, consensus, or an accepted state change. Only a real accepted write with a transaction hash and verified post-state is runtime proof.
-
-## Historical v1.0 deployment
-
-The former Project address `0xD73E8602FD5467577e8441Cdb25F5521B4A61530` used source SHA-256 `8fe22585783c83c3dd8f8fdf712f0d3729a439c700db1d92c252bbd3dcec86c8`. Its observations are historical context only. They are not claimed as v1.1 proof and are not carried forward as PASS.

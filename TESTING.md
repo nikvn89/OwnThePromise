@@ -8,8 +8,8 @@ This document never treats transaction submission, `ACCEPTED` consensus alone, o
 Network: StudioNet (61999)
 Contract class: AttributionGate
 Project source file: contract/OwnThePromise.py
-Contract address: 0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
-Deploy transaction: 0xa53682819d9bd0a29fc4a824928ff67925cb03fecc72eeed7ec95bad21417447
+Contract address: 0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
+Deploy transaction: 0x764f837116f8b0437deb3d5927e51d25d395eb3b5b38317923b3bd0bb4c9e372
 Source SHA-256: 50b56198975167d8ff11328be0f7f5cb01329ad48a884fa27ae5e6bc7c2314d9
 Runtime status: NOT RUN
 ```

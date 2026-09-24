@@ -26,7 +26,7 @@ import { abi } from 'genlayer-js'
 import { encodeFunctionData } from 'viem'
 
 const RPC = process.env.STUDIO_RPC || 'https://studio.genlayer.com/api'
-const CONTRACT = process.env.CONTRACT || '0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB'
+const CONTRACT = process.env.CONTRACT || '0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc'
 // StudioNet ConsensusMain contract used by genlayer-js addTransaction writes.
 const CONSENSUS = '0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575'
 const FROM = process.env.FROM || '0x0000000000000000000000000000000000000000'
