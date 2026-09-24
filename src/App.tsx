@@ -76,19 +76,17 @@ export default function App() {
   const refreshTimer = useRef<number | null>(null);
   const [tx, setTx] = useState<TxUiState>(EMPTY_TX);
 
-  const [name, setName] = useState("Clinical assay commitments");
-  const [role, setRole] = useState("Sponsor");
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
   const [beneficiary, setBeneficiary] = useState("");
-  const [required, setRequired] = useState("3");
+  const [required, setRequired] = useState("");
 
   const [registerIdInput, setRegisterIdInput] = useState("");
   const [register, setRegister] = useState<RegisterRecord | null>(null);
   const [attempts, setAttempts] = useState<AttemptRecord[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const [statement, setStatement] = useState(
-    "We understand the central laboratory will release the final assay results to investigators before database lock."
-  );
+  const [statement, setStatement] = useState("");
 
   const isCreator =
     Boolean(register && account) &&
@@ -436,10 +434,10 @@ export default function App() {
           <section className="grid register-grid">
             <article className="panel">
               <div className="panel-heading"><div><span className="step">01</span><h2>Create register</h2></div><span className="quiet-chip">deterministic</span></div>
-              <label>Register name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME_LENGTH}/></label>
-              <label>Declared author role<input value={role} onChange={(e) => setRole(e.target.value)} maxLength={MAX_ROLE_LABEL_LENGTH}/></label>
+              <label>Register name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME_LENGTH} placeholder="e.g. Clinical assay commitments"/></label>
+              <label>Declared author role<input value={role} onChange={(e) => setRole(e.target.value)} maxLength={MAX_ROLE_LABEL_LENGTH} placeholder="e.g. Sponsor"/></label>
               <label>Beneficiary wallet<input value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} placeholder="0x..."/></label>
-              <label>Required own commitments<input type="number" min={1} max={MAX_REQUIRED_COMMITMENTS} value={required} onChange={(e) => setRequired(e.target.value)}/></label>
+              <label>Required own commitments<input type="number" min={1} max={MAX_REQUIRED_COMMITMENTS} value={required} onChange={(e) => setRequired(e.target.value)} placeholder="1-10"/></label>
               <button className="primary" disabled={busy} onClick={createRegister}><FileSignature size={16}/>Create register</button>
             </article>
 
@@ -458,7 +456,7 @@ export default function App() {
 
             <article className="panel">
               <div className="panel-heading"><div><span className="step">03</span><h2>Submit statement</h2></div><span className="semantic-chip">GenLayer consensus</span></div>
-              <label>Statement<textarea rows={5} value={statement} onChange={(e) => setStatement(e.target.value)} maxLength={MAX_STATEMENT_LENGTH}/><small>{Array.from(statement).length}/{MAX_STATEMENT_LENGTH}</small></label>
+              <label>Statement<textarea rows={5} value={statement} onChange={(e) => setStatement(e.target.value)} maxLength={MAX_STATEMENT_LENGTH} placeholder="Enter one statement for GenLayer to classify."/><small>{Array.from(statement).length}/{MAX_STATEMENT_LENGTH}</small></label>
               <button className="primary" disabled={busy || !register || !isCreator || Boolean(register?.frozen)} onClick={submitStatement}><Send size={16}/>Submit statement</button>
               <p className="helper">The model sees only the declared author role and this statement. Wallet, quota and state do not enter the prompt.</p>
             </article>
