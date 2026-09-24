@@ -25,10 +25,18 @@ import {
   getAttempts,
   getConnectedWallet,
   getRegister,
+  leaderRollbackReason,
   requestWallet,
   writeMethod,
 } from "./genlayer";
-import { computeRegisterId, normalizeId, pyLen, pyStrip } from "./ids";
+import {
+  computeRegisterId,
+  computeStatementId,
+  normalizeId,
+  pyCollapse,
+  pyLen,
+  pyStrip,
+} from "./ids";
 import type { AttemptRecord, RegisterRecord, TxUiState } from "./types";
 
 type Tab = "register" | "statements";
@@ -44,7 +52,8 @@ function short(value: string, head = 7, tail = 5) {
 }
 
 function stateCopy(state: string) {
-  if (state === "FROZEN") return "Quota was met and this register is now permanently frozen.";
+  if (state === "ACKNOWLEDGED") return "The beneficiary acknowledged this frozen register.";
+  if (state === "FROZEN") return "Quota was met. Only the beneficiary may acknowledge this register.";
   if (state === "QUOTA_MET") return "Enough author commitments are recorded. The creator may freeze the register.";
   return "The register is open. Only statements classified as the author's own commitments advance the quota.";
 }
@@ -59,16 +68,18 @@ export default function App() {
   // What accepted-state change would prove the submitted write actually landed.
   const pendingRef = useRef<{
     registerId: string;
-    kind: "create" | "submit" | "freeze";
+    hash: string;
+    kind: "create" | "submit" | "freeze" | "acknowledge";
     beforeRecorded?: number;
     retried?: boolean;
   } | null>(null);
   const refreshTimer = useRef<number | null>(null);
   const [tx, setTx] = useState<TxUiState>(EMPTY_TX);
 
-  const [name, setName] = useState("Migration commitments");
-  const [role, setRole] = useState("Platform Team");
-  const [required, setRequired] = useState("1");
+  const [name, setName] = useState("Clinical assay commitments");
+  const [role, setRole] = useState("Sponsor");
+  const [beneficiary, setBeneficiary] = useState("");
+  const [required, setRequired] = useState("3");
 
   const [registerIdInput, setRegisterIdInput] = useState("");
   const [register, setRegister] = useState<RegisterRecord | null>(null);
@@ -76,7 +87,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   const [statement, setStatement] = useState(
-    "The vendor says it will publish the migration plan before production cutover."
+    "We understand the central laboratory will release the final assay results to investigators before database lock."
   );
 
   const isCreator =
@@ -87,6 +98,15 @@ export default function App() {
       isCreator &&
       !register.frozen &&
       register.owned_count >= register.required_commitments
+  );
+  const isBeneficiary =
+    Boolean(register && account) &&
+    register!.beneficiary.toLowerCase() === account.toLowerCase();
+  const canAcknowledge = Boolean(
+    register &&
+      isBeneficiary &&
+      register.frozen &&
+      !register.acknowledged
   );
 
   const progress = useMemo(() => {
@@ -163,7 +183,8 @@ export default function App() {
           pending.kind === "create" ||
           (pending.kind === "submit" &&
             nextRegister.recorded_count > (pending.beforeRecorded ?? -1)) ||
-          (pending.kind === "freeze" && nextRegister.frozen);
+          (pending.kind === "freeze" && nextRegister.frozen) ||
+          (pending.kind === "acknowledge" && nextRegister.acknowledged);
 
         if (accepted) {
           pendingRef.current = null;
@@ -192,13 +213,15 @@ export default function App() {
           return;
         }
 
+        const rollbackReason = await leaderRollbackReason(pending.hash);
         pendingRef.current = null;
         inFlight.current = false;
         setBusy(false);
         setTx({
           kind: "error",
-          message:
-            "Accepted state still has not changed. Check the transaction on Explorer before resubmitting - an identical statement will revert.",
+          message: rollbackReason
+            ? `Transaction rolled back: ${rollbackReason}`
+            : "Accepted state still has not changed. Check the transaction on Explorer before resubmitting.",
         });
         return;
       }
@@ -214,7 +237,11 @@ export default function App() {
   async function runWrite(
     functionName: string,
     args: unknown[],
-    expectation: { registerId: string; kind: "create" | "submit" | "freeze"; beforeRecorded?: number },
+    expectation: {
+      registerId: string;
+      kind: "create" | "submit" | "freeze" | "acknowledge";
+      beforeRecorded?: number;
+    },
     afterSubmit?: () => void
   ) {
     if (!account) {
@@ -229,7 +256,7 @@ export default function App() {
     try {
       await connectStudioNet();
       const hash = await writeMethod(account, functionName, args);
-      pendingRef.current = { ...expectation };
+      pendingRef.current = { ...expectation, hash };
       setTx({
         kind: "submitted",
         hash,
@@ -254,6 +281,7 @@ export default function App() {
   async function createRegister() {
     const cleanName = pyStrip(name);
     const cleanRole = pyStrip(role);
+    const cleanBeneficiary = pyStrip(beneficiary);
     const quota = Number(required);
 
     if (!account) return connect();
@@ -269,6 +297,14 @@ export default function App() {
     }
     if (!Number.isInteger(quota) || quota < 1 || quota > MAX_REQUIRED_COMMITMENTS) {
       setTx({ kind: "error", message: `Required commitments must be between 1 and ${MAX_REQUIRED_COMMITMENTS}.` });
+      return;
+    }
+    if (!/^0x[0-9a-fA-F]{40}$/.test(cleanBeneficiary)) {
+      setTx({ kind: "error", message: "Enter a valid beneficiary wallet address." });
+      return;
+    }
+    if (cleanBeneficiary.toLowerCase() === account.toLowerCase()) {
+      setTx({ kind: "error", message: "Beneficiary must be a different wallet from the creator." });
       return;
     }
 
@@ -300,7 +336,7 @@ export default function App() {
     setRegisterIdInput(id);
     await runWrite(
       "create_register",
-      [cleanName, cleanRole, quota],
+      [cleanName, cleanRole, cleanBeneficiary, quota],
       { registerId: id, kind: "create" },
       () => {
         setRegister(null);
@@ -322,9 +358,14 @@ export default function App() {
       setTx({ kind: "error", message: "This register is frozen." });
       return;
     }
-    const clean = pyStrip(statement);
-    if (!clean || Array.from(clean).length > MAX_STATEMENT_LENGTH) {
+    const clean = pyCollapse(statement);
+    if (!clean || pyLen(clean) > MAX_STATEMENT_LENGTH) {
       setTx({ kind: "error", message: `Statement must be 1-${MAX_STATEMENT_LENGTH} characters.` });
+      return;
+    }
+    const statementId = computeStatementId(register.register_id, clean);
+    if (attempts.some((attempt) => attempt.statement_id === statementId)) {
+      setTx({ kind: "error", message: "This statement already exists in the loaded register." });
       return;
     }
     await runWrite("submit_statement", [register.register_id, clean], {
@@ -339,6 +380,14 @@ export default function App() {
     await runWrite("freeze_register", [register.register_id], {
       registerId: register.register_id,
       kind: "freeze",
+    });
+  }
+
+  async function acknowledgeRegister() {
+    if (!register) return;
+    await runWrite("acknowledge_register", [register.register_id], {
+      registerId: register.register_id,
+      kind: "acknowledge",
     });
   }
 
@@ -389,6 +438,7 @@ export default function App() {
               <div className="panel-heading"><div><span className="step">01</span><h2>Create register</h2></div><span className="quiet-chip">deterministic</span></div>
               <label>Register name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={MAX_NAME_LENGTH}/></label>
               <label>Declared author role<input value={role} onChange={(e) => setRole(e.target.value)} maxLength={MAX_ROLE_LABEL_LENGTH}/></label>
+              <label>Beneficiary wallet<input value={beneficiary} onChange={(e) => setBeneficiary(e.target.value)} placeholder="0x..."/></label>
               <label>Required own commitments<input type="number" min={1} max={MAX_REQUIRED_COMMITMENTS} value={required} onChange={(e) => setRequired(e.target.value)}/></label>
               <button className="primary" disabled={busy} onClick={createRegister}><FileSignature size={16}/>Create register</button>
             </article>
@@ -399,7 +449,7 @@ export default function App() {
               {!register ? <div className="empty-state">Create a register or paste an existing register ID.</div> : (
                 <div className="register-card">
                   <div className="register-title-row"><div><span className={`status-badge ${register.state.toLowerCase()}`}>{register.state}</span><h3>{register.name}</h3></div><button className="copy-button" onClick={() => copy(register.register_id)}><Copy size={14}/></button></div>
-                  <div className="facts"><div><span>AUTHOR ROLE</span><strong>{register.author_role_label}</strong></div><div><span>RECORDED</span><strong>{register.recorded_count}</strong></div><div><span>OWNED</span><strong>{register.owned_count} / {register.required_commitments}</strong></div><div><span>CREATOR</span><strong>{short(register.creator)}</strong></div></div>
+                  <div className="facts"><div><span>AUTHOR ROLE</span><strong>{register.author_role_label}</strong></div><div><span>RECORDED</span><strong>{register.recorded_count} / {register.statement_limit}</strong></div><div><span>OWNED</span><strong>{register.owned_count} / {register.required_commitments}</strong></div><div><span>CREATOR</span><strong>{short(register.creator)}</strong></div><div><span>BENEFICIARY</span><strong>{short(register.beneficiary)}</strong></div><div><span>ACKNOWLEDGED</span><strong>{register.acknowledged ? "YES" : "NO"}</strong></div></div>
                   <div className="progress-track"><div style={{width: `${progress}%`}} /></div>
                   <p className="mode-note">{stateCopy(register.state)}</p>
                 </div>
@@ -418,6 +468,12 @@ export default function App() {
               <div className="freeze-box"><LockKeyhole size={28}/><strong>{register?.state ?? "OPEN"}</strong><span>{register ? `${register.owned_count} of ${register.required_commitments} own commitments` : "Load a register to see quota state."}</span></div>
               <button className="freeze-button" disabled={busy || !canFreeze} onClick={freezeRegister}><LockKeyhole size={16}/>{register?.frozen ? "Frozen" : canFreeze ? "Freeze permanently" : "Quota not met"}</button>
             </article>
+
+            <article className="panel">
+              <div className="panel-heading"><div><span className="step">05</span><h2>Beneficiary acknowledgement</h2></div><span className="quiet-chip">two-party</span></div>
+              <div className="freeze-box"><ShieldCheck size={28}/><strong>{register?.acknowledged ? "ACKNOWLEDGED" : "PENDING"}</strong><span>{register ? `Only ${short(register.beneficiary)} may acknowledge after freeze.` : "Load a register to inspect its beneficiary."}</span></div>
+              <button className="freeze-button" disabled={busy || !canAcknowledge} onClick={acknowledgeRegister}><Check size={16}/>{register?.acknowledged ? "Acknowledged" : canAcknowledge ? "Acknowledge frozen register" : "Beneficiary action unavailable"}</button>
+            </article>
           </section>
         ) : (
           <section className="grid statements-grid">
@@ -433,9 +489,9 @@ export default function App() {
             </article>
             <article className="panel reviewer-panel">
               <div className="panel-heading"><div><span className="step">03</span><h2>Reviewer contrast</h2></div></div>
-              <div className="example no"><span>EXPECTED NOT_AUTHOR_COMMITMENT</span><p>The vendor says it will publish the migration plan before production cutover.</p></div>
-              <div className="example yes"><span>EXPECTED AUTHOR_COMMITMENT</span><p>We will publish the migration plan before production cutover.</p></div>
-              <div className="example hard"><span>HARD CASE · AUTHOR</span><p>The undersigned undertakes to publish the migration plan before cutover.</p></div>
+              <div className="example no"><span>HARD CASE · EXPECTED NOT_AUTHOR</span><p>We are on track to release the final assay results well before database lock.</p></div>
+              <div className="example yes"><span>CONTRAST · EXPECTED AUTHOR</span><p>We will release the final assay results to investigators before database lock.</p></div>
+              <div className="example hard"><span>THIRD PERSON · EXPECTED AUTHOR</span><p>The Sponsor shall release the final assay results to investigators before database lock.</p></div>
             </article>
           </section>
         )}

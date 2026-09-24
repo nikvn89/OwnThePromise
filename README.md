@@ -1,296 +1,134 @@
-# OwnThePromise
+# OwnThePromise v1.1
 
-**Speech-act attribution on GenLayer.**
+OwnThePromise records natural-language commitments and asks GenLayer validators one narrow question: does the submitted statement itself place the declared author role in the position of the party that will perform the future action or produce the future result?
 
-> Quoting a promise is not making one.
+The product is **OwnThePromise**. Its Intelligent Contract class is **AttributionGate**.
 
-OwnThePromise evaluates whether a submitted sentence itself places the declared author role in the position of the party that will perform the described future action or result.
+## Release status
 
-It does **not** verify real-world identity, legal enforceability, promise strength, testability, actual performance, or off-chain facts.
+| Item | v1.1 status |
+|---|---|
+| Local static tests | PASS |
+| TypeScript build | PASS |
+| StudioNet deployment | PASS — GenVM SUCCESS |
+| Accepted `get_config` identity | PASS — OwnThePromise / AttributionGate / 1.1 |
+| StudioNet runtime proof | NOT RUN |
+| Vercel deployment | PENDING |
+| Submission readiness | NOT READY until runtime hashes are recorded |
 
-## Why GenLayer
+Exact contract source:
 
-Traditional deterministic smart contracts cannot reliably determine who a natural-language sentence attributes a future action to.
+```text
+contract/OwnThePromise.py
+SHA-256: 50b56198975167d8ff11328be0f7f5cb01329ad48a884fa27ae5e6bc7c2314d9
+Lines: 758
+Bytes: 23594
+Network: StudioNet (chain 61999)
+py-genlayer: v0.2 dependency header
+```
 
-OwnThePromise uses GenLayer AI-validator consensus for one narrow semantic decision:
+StudioNet deployment:
+
+```text
+Address: 0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
+Deploy transaction: 0xa53682819d9bd0a29fc4a824928ff67925cb03fecc72eeed7ec95bad21417447
+Execution: GenVM SUCCESS
+Consensus: Accepted
+get_config: project_name=OwnThePromise, contract_name=AttributionGate, version=1.1
+```
+
+Explorer: https://explorer-studio.genlayer.com/address/0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
+
+The deployment and configuration identity are verified. The business runtime flow is still pending and is not claimed as PASS.
+
+## What the contract decides
+
+Semantic consensus returns exactly one verdict:
 
 ```text
 AUTHOR_COMMITMENT
 NOT_AUTHOR_COMMITMENT
 ```
 
-The contract then applies deterministic state consequences.
+The contract does not verify real-world identity, legal enforceability, promise strength, testability, performance, or external facts. Wallet roles are explicit on-chain addresses; they are not inferred by the model.
+
+Deterministic effects:
+
+- every accepted statement increments `recorded_count`;
+- only `AUTHOR_COMMITMENT` increments `owned_count`;
+- only the creator may submit statements and freeze the register;
+- freeze requires `owned_count >= required_commitments`;
+- only the stored beneficiary may acknowledge a frozen register.
+
+State progression:
 
 ```text
-AUTHOR_COMMITMENT
--> owned_count += 1
--> recorded_count += 1
-
-NOT_AUTHOR_COMMITMENT
--> owned_count unchanged
--> recorded_count += 1
+OPEN -> QUOTA_MET -> FROZEN -> ACKNOWLEDGED
 ```
 
-When:
+## v1.1 security behavior
+
+- Invalid or malformed semantic output raises `Invalid semantic output`; the transaction rolls back and creates no statement or counter change.
+- User text containing prompt delimiters, verdict labels, or rubric headers is rejected rather than modified.
+- Statement whitespace is collapsed before classification, storage, and ID calculation. Cosmetic whitespace variants therefore collide with the original statement ID.
+- Register and statement ID prefixes remain `ATTRIBUTION_GATE:*:V1`; existing formulas were not redesigned.
+- The statement limit is `min(20, 2 * required_commitments)`.
+- A frozen register has a two-party consequence: its beneficiary, not its creator, gains the right to acknowledge it.
+
+## Grinding bound
+
+The previous fixed allowance of 20 attempts was too permissive when only one commitment was required. If the per-attempt false-positive probability is `p`, the chance of at least one false positive in `n` attempts is:
 
 ```text
-owned_count >= required_commitments
+1 - (1 - p)^n
 ```
 
-the register reaches:
+With 20 attempts, this is 98.8% at `p=20%`, 87.8% at `p=10%`, and 64.2% at `p=5%`.
 
-```text
-QUOTA_MET
-```
+v1.1 gives a register requiring one commitment only two attempts. The same values become 36%, 19%, and 9.75%. This limits retry grinding; it does not eliminate semantic misclassification. Higher commitment quotas provide stronger evidence.
 
-The creator may then permanently freeze it:
+## Frontend confirmation model
 
-```text
-FROZEN
-```
+The Vite/React frontend:
 
-## Project deployment
+- reads `stateStatus: "accepted"` through the same-origin RPC proxy;
+- treats a returned transaction hash as submitted, not completed;
+- confirms writes by matching the expected accepted state;
+- checks the leader rollback reason only after state matching times out;
+- computes Python-compatible register and normalized statement IDs locally;
+- derives creator and beneficiary authorization from accepted contract state;
+- contains no hardcoded reviewer wallet.
 
-```text
-Network: StudioNet
-Contract: AttributionGate
-Address: 0xD73E8602FD5467577e8441Cdb25F5521B4A61530
-```
+## Local verification
 
-Explorer:
-
-https://explorer-studio.genlayer.com/address/0xD73E8602FD5467577e8441Cdb25F5521B4A61530
-
-
-## Public links
-
-```text
-GitHub: https://github.com/nikvn89/OwnThePromise
-Live dApp: https://own-the-promise.vercel.app/
-Contract: 0xD73E8602FD5467577e8441Cdb25F5521B4A61530
-```
-
-Explorer:
-
-https://explorer-studio.genlayer.com/address/0xD73E8602FD5467577e8441Cdb25F5521B4A61530
-
-## Product flow
-
-1. Create a register with a name, declared author role, and required commitment quota.
-2. Submit one sentence at a time.
-3. GenLayer validators classify whether the declared author role is actually the party taking on the future action.
-4. Only `AUTHOR_COMMITMENT` advances the owned quota.
-5. Once the quota is met, the creator may freeze the register permanently.
-
-## States
-
-```text
-OPEN
-QUOTA_MET
-FROZEN
-```
-
-`FROZEN` is a one-way deterministic latch.
-
-## Frontend
-
-The dApp provides two tabs:
-
-```text
-Register
-Statements
-```
-
-The frontend:
-
-- uses accepted contract state as the source of truth,
-- computes register IDs locally,
-- separates transaction submission from accepted-state refresh,
-- prevents double submission,
-- uses a same-origin StudioNet RPC proxy,
-- does not poll transaction receipts in a loop,
-- resets loaded state on wallet/account changes,
-- displays only contract-returned semantic verdicts,
-- disables statement submission once the register is frozen.
-
-## Observed local runtime evidence
-
-### Frontend demo 02
-
-Initial state:
-
-```text
-OPEN
-recorded_count = 0
-owned_count = 0
-required_commitments = 1
-```
-
-Submitted:
-
-```text
-The vendor says it will publish the migration plan before production cutover.
-```
-
-Observed accepted state:
-
-```text
-NOT_AUTHOR_COMMITMENT
-OPEN
-recorded_count = 1
-owned_count = 0
-```
-
-A direct author commitment was then accepted and produced:
-
-```text
-AUTHOR_COMMITMENT
-QUOTA_MET
-recorded_count = 2
-owned_count = 1
-```
-
-A further direct author commitment was accepted while the register was still unfrozen:
-
-```text
-AUTHOR_COMMITMENT
-QUOTA_MET
-recorded_count = 3
-owned_count = 2
-```
-
-The creator then froze the register.
-
-Observed:
-
-```text
-FROZEN
-recorded_count = 3
-owned_count = 2
-```
-
-The frontend disabled further statement submission after the accepted `FROZEN` state.
-
-The Statements tab showed:
-
-```text
-#1 NOT_AUTHOR_COMMITMENT
-#2 AUTHOR_COMMITMENT
-#3 AUTHOR_COMMITMENT
-```
-
-### Long calldata runtime test
-
-Register:
-
-```text
-Frontend long 01
-```
-
-Submitted 209-character statement:
-
-```text
-Our Platform Team hereby commits to publish a complete production migration plan, circulate that plan among release reviewers, and deliver the final approved version before the scheduled cutover window begins.
-```
-
-Observed accepted state:
-
-```text
-AUTHOR_COMMITMENT
-QUOTA_MET
-recorded_count = 1
-owned_count = 1
-```
-
-A separate calldata probe also observed:
-
-```text
-SHORT: 77 chars, 182-byte payload -> OK
-LONG: 241 chars, 348-byte payload -> OK
-payload crosses 255 bytes at 151 characters
-contract statement cap = 800 characters
-```
-
-This confirms the tested long statement path works beyond the historical 255-byte payload boundary.
-
-See `TESTING.md` and `FRONTEND_TESTING.md` for the exact evidence scope.
-
-## Local development
+Requirements: Node.js 20+, npm, and Python 3.
 
 ```bash
-npm install
-npm run build
-npm run dev
+npm ci --ignore-scripts
+npm run check
 ```
 
-Open:
+`npm run check` executes the A1-A5 adversarial fixture integrity/leak guard, exhaustive Unicode whitespace parity test, source guard verification, TypeScript compilation, and production Vite build. Actual A1-A5 verdicts remain a StudioNet runtime test.
+
+## Complete v1.1 runtime proof
+
+1. Follow `TESTING.md`; record every transaction hash and accepted post-state.
+2. Complete the A1-A5 semantic test and beneficiary lifecycle.
+3. Deploy the verified frontend to Vercel.
+4. Follow `FRONTEND_TESTING.md` on the live dApp.
+5. Replace remaining `PENDING` fields in `SUBMISSION_NOTE.md` only after evidence exists.
+
+Environment:
 
 ```text
-http://localhost:5173/
-```
-
-## Vercel environment
-
-```text
-VITE_CONTRACT_ADDRESS=0xD73E8602FD5467577e8441Cdb25F5521B4A61530
+VITE_CONTRACT_ADDRESS=0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
 VITE_RPC_PATH=/api/rpc
 ```
 
+## Calldata probe limitation
 
-## Observed Vercel production evidence
+`tools/probe-calldata.mjs` uses `eth_estimateGas` against the consensus entrypoint. An OK response proves only that the EVM entrypoint received that serialized payload. It does **not** prove GenVM decoding, authorization, semantic execution, consensus, or an accepted state change. Only a real accepted write with a transaction hash and verified post-state is runtime proof.
 
-Live deployment:
+## Historical v1.0 deployment
 
-```text
-https://own-the-promise.vercel.app/
-```
-
-Production register:
-
-```text
-Vercel demo 01
-author role = Platform Team
-required commitments = 1
-```
-
-Observed production flow:
-
-```text
-create register
--> OPEN
--> recorded_count = 0
--> owned_count = 0 / 1
-
-"The vendor says it will publish the migration plan before production cutover."
--> NOT_AUTHOR_COMMITMENT
--> recorded_count = 1
--> owned_count = 0 / 1
--> OPEN
-
-"The undersigned undertakes to publish the migration plan before cutover."
--> AUTHOR_COMMITMENT
--> recorded_count = 2
--> owned_count = 1 / 1
--> QUOTA_MET
-
-freeze_register
--> FROZEN
--> recorded_count = 2
--> owned_count = 1 / 1
-```
-
-The production frontend also showed the accepted statement history and disabled further statement submission after `FROZEN`.
-
-Result:
-
-```text
-PRODUCTION VERCEL FLOW PASS
-```
-
-## Important limitation
-
-OwnThePromise answers only:
-
-> Does this submitted sentence itself put the declared author role in the position of the party that will perform the described future action or result?
-
-It does not prove that the connected wallet truly represents that role, that a promise is legally binding, or that the promised action was later performed.
+The former Project address `0xD73E8602FD5467577e8441Cdb25F5521B4A61530` used source SHA-256 `8fe22585783c83c3dd8f8fdf712f0d3729a439c700db1d92c252bbd3dcec86c8`. Its observations are historical context only. They are not claimed as v1.1 proof and are not carried forward as PASS.

@@ -1,59 +1,65 @@
-# OwnThePromise — Frontend Testing
+# OwnThePromise v1.1 — Frontend Verification
 
-## Local status
-
-Observed local runtime:
+## Current status
 
 ```text
-Create register                         PASS
-Load accepted state                    PASS
-NOT_AUTHOR_COMMITMENT rendering        PASS
-AUTHOR_COMMITMENT rendering            PASS
-Quota progression                      PASS
-QUOTA_MET state                        PASS
-Freeze                                 PASS
-FROZEN state                           PASS
-Frozen submit-button lock              PASS
-Statements history                     PASS
-Long calldata >255-byte write          PASS
-Accepted-state status messaging        PASS
+Local static checks: PASS
+Local production build: PASS
+StudioNet v1.1 runtime: NOT RUN
+Vercel v1.1 runtime: NOT RUN
 ```
 
-## Production Vercel verification
-
-Live:
+The frontend is pinned to the v1.1 Project deployment:
 
 ```text
-https://own-the-promise.vercel.app/
+0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB
 ```
 
-Observed production regression:
+## Local checks
 
-```text
-Connect MetaMask                       PASS
-Create register                        PASS
-Load accepted OPEN state               PASS
-NOT_AUTHOR_COMMITMENT render           PASS
-AUTHOR_COMMITMENT render               PASS
-QUOTA_MET render                       PASS
-Freeze write                           PASS
-FROZEN accepted state                  PASS
-Statements tab                         PASS
-Frozen statement-submit lock           PASS
+```bash
+npm ci --ignore-scripts
+npm run check
 ```
 
-Production register:
+Observed locally:
 
-```text
-Vercel demo 01
-```
+| Check | Status |
+|---|---|
+| Python/TypeScript whitespace parity | PASS |
+| Register ID parity helpers retained | PASS |
+| Normalized statement ID helper present | PASS |
+| Accepted-state reads and matching compile | PASS |
+| Delayed leader rollback lookup compiles | PASS |
+| Beneficiary acknowledgement UI compiles | PASS |
+| Production Vite bundle | PASS |
 
-Final observed state:
+## Short dApp path
 
-```text
-FROZEN
-recorded_count = 2
-owned_count = 1 / 1
-```
+Using the pinned Project contract:
 
-No production failure was observed in this tested flow.
+1. Connect creator wallet C on StudioNet.
+2. Create a register with beneficiary B and quota 2; save the transaction hash.
+3. Submit A2 and A4 from `TESTING.md`; verify both accepted verdicts and `QUOTA_MET`.
+4. Freeze from C; verify accepted `FROZEN` state.
+5. Switch to B and acknowledge; verify accepted `ACKNOWLEDGED` state.
+6. Open the statements view and compare both records, IDs, verdicts, and counters with Explorer.
+
+## Runtime checklist
+
+| UI behavior | Evidence required | Status |
+|---|---|---|
+| Correct v1.1 address displayed | address + source hash | NOT RUN |
+| Wallet switches to chain 61999 | screenshot or observation | NOT RUN |
+| Creator/beneficiary authorization follows accepted state | hashes + state | NOT RUN |
+| A2 and A4 render `AUTHOR_COMMITMENT` | hashes + statement views | NOT RUN |
+| `QUOTA_MET` renders after two owned commitments | accepted register view | NOT RUN |
+| Frozen register disables statement submission | freeze hash + UI | NOT RUN |
+| Beneficiary can acknowledge | acknowledge hash + state | NOT RUN |
+| Non-beneficiary cannot acknowledge | rollback hash/reason | NOT RUN |
+| `ACKNOWLEDGED` renders | accepted register view | NOT RUN |
+| Account change clears/reloads role-sensitive state | observation | NOT RUN |
+| Timeout surfaces leader rollback reason | rollback test | NOT RUN |
+| Vercel production matches local behavior | URL + hashes/state | NOT RUN |
+
+Do not mark a row PASS from a toast, a returned hash, or transaction consensus status alone. Verify the intended accepted contract state.

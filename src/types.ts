@@ -1,13 +1,16 @@
 export type RegisterRecord = {
   register_id: string;
   creator: string;
+  beneficiary: string;
   name: string;
   author_role_label: string;
   required_commitments: number;
   owned_count: number;
   recorded_count: number;
+  statement_limit: number;
   frozen: boolean;
-  state: "OPEN" | "QUOTA_MET" | "FROZEN" | string;
+  acknowledged: boolean;
+  state: "OPEN" | "QUOTA_MET" | "FROZEN" | "ACKNOWLEDGED" | string;
 };
 
 export type AttemptRecord = {

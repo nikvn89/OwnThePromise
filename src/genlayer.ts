@@ -46,12 +46,15 @@ function normalizeRegister(raw: any): RegisterRecord {
   return {
     register_id: String(raw?.register_id ?? ""),
     creator: String(raw?.creator ?? ""),
+    beneficiary: String(raw?.beneficiary ?? ""),
     name: String(raw?.name ?? ""),
     author_role_label: String(raw?.author_role_label ?? ""),
     required_commitments: asNumber(raw?.required_commitments),
     owned_count: asNumber(raw?.owned_count),
     recorded_count: asNumber(raw?.recorded_count),
+    statement_limit: asNumber(raw?.statement_limit),
     frozen: Boolean(raw?.frozen),
+    acknowledged: Boolean(raw?.acknowledged),
     state: String(raw?.state ?? "OPEN"),
   };
 }
@@ -163,4 +166,38 @@ export async function writeMethod(
     args,
     value: 0n,
   })) as string;
+}
+
+/**
+ * Call only after accepted-state matching has timed out. State matching remains
+ * the primary confirmation mechanism; this distinguishes an actual rollback
+ * from a transaction that is merely slow and surfaces the rollback reason.
+ */
+export async function leaderRollbackReason(hash: string): Promise<string | undefined> {
+  try {
+    const tx: any = await readClient.getTransaction({ hash });
+    const consensus = tx?.consensus_data ?? tx?.consensusData;
+    let leader = consensus?.leader_receipt ?? consensus?.leaderReceipt;
+    if (Array.isArray(leader)) {
+      leader =
+        leader.find((receipt: any) =>
+          String(receipt?.mode ?? "").toUpperCase() === "LEADER"
+        ) ?? leader[0];
+    }
+    const result = String(
+      leader?.execution_result ?? leader?.executionResult ?? ""
+    ).toUpperCase();
+    if (result !== "ERROR" && result !== "FINISHED_WITH_ERROR") return undefined;
+    for (const field of [
+      leader?.error,
+      leader?.message,
+      leader?.return_data,
+      leader?.returnData,
+    ]) {
+      if (typeof field === "string" && field.trim()) return field.trim();
+    }
+    return "Contract execution rolled back.";
+  } catch {
+    return undefined;
+  }
 }

@@ -1,12 +1,15 @@
 {
   "name": "ownthepromise-genlayer",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc -b --pretty false",
+    "test:static": "python3 tests/ag_kill.py && node tests/parity.mjs && node tools/verify-project.mjs",
+    "check": "npm run test:static && npm run build"
   },
   "dependencies": {
     "genlayer-js": "^1.1.8",

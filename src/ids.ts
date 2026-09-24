@@ -13,6 +13,14 @@ export function pyLen(value: string): number {
   return Array.from(value).length;
 }
 
+/** Contract collapses internal whitespace in statements after stripping ends. */
+export function pyCollapse(value: string): string {
+  return value
+    .split(new RegExp("[" + PY_SPACE + "]+"))
+    .filter(Boolean)
+    .join(" ");
+}
+
 function digest(payload: string): string {
   return keccak256(stringToBytes(payload)).slice(2).toLowerCase();
 }
@@ -22,6 +30,18 @@ export function computeRegisterId(creator: string, name: string): string {
   return digest(
     "ATTRIBUTION_GATE:REGISTER:V1|" +
       creator.toLowerCase() +
+      "|" +
+      pyLen(cleaned) +
+      "|" +
+      cleaned
+  );
+}
+
+export function computeStatementId(registerId: string, text: string): string {
+  const cleaned = pyCollapse(text);
+  return digest(
+    "ATTRIBUTION_GATE:STATEMENT:V1|" +
+      registerId.toLowerCase() +
       "|" +
       pyLen(cleaned) +
       "|" +

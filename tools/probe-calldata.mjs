@@ -1,9 +1,9 @@
 /**
  * OwnThePromise — StudioNet long-calldata probe.
  *
- * Answers ONE question, with no wallet and no signing:
- *   does submit_statement still work once the GenLayer RLP payload crosses
- *   255 bytes (statement longer than 150 characters)?
+ * Answers ONE limited question, with no wallet and no signing:
+ *   can the consensus EVM entrypoint receive an addTransaction payload once
+ *   the serialized GenLayer calldata crosses 255 bytes?
  *
  * That boundary is where the CommitGate frontend died with
  *   "RLP string ends with N superfluous bytes"
@@ -17,18 +17,17 @@
  *   2. eth_estimateGas on addTransaction(submit_statement, SHORT)  - 182 bytes
  *   3. eth_estimateGas on addTransaction(submit_statement, LONG)   - 400+ bytes
  *
- * Read it like this:
- *   short OK + long OK    -> the write path is fine above 255 bytes. Nothing to do.
- *   short OK + long FAILS -> the boundary is real for writes. Do NOT ship a
- *                            statement box that accepts 800 characters until it
- *                            is fixed; the reviewer will paste a long sentence.
- *   both fail             -> not a size problem; check the address and RPC.
+ * IMPORTANT: eth_estimateGas does not execute the queued GenVM transaction.
+ * An OK result proves payload reception at the EVM consensus entrypoint only;
+ * it does not prove GenVM decoding, authorization, semantic execution, or an
+ * accepted state change. A real accepted long write is required for that.
  */
 import { abi } from 'genlayer-js'
 import { encodeFunctionData } from 'viem'
 
 const RPC = process.env.STUDIO_RPC || 'https://studio.genlayer.com/api'
-const CONTRACT = process.env.CONTRACT || '0xD73E8602FD5467577e8441Cdb25F5521B4A61530'
+const CONTRACT = process.env.CONTRACT || '0xB38385BFFe6415e6B1d12E2a9610dCcB72F790EB'
+// StudioNet ConsensusMain contract used by genlayer-js addTransaction writes.
 const CONSENSUS = '0xb7278A61aa25c888815aFC32Ad3cC52fF24fE575'
 const FROM = process.env.FROM || '0x0000000000000000000000000000000000000000'
 const REGISTER_ID = (process.argv[2] || '').trim().toLowerCase()
@@ -97,4 +96,4 @@ for (const [label, text] of [['SHORT', SHORT], ['LONG', LONG]]) {
   report(`WRITE submit_statement via estimateGas (${label}, ${text.length} chars)`, p, j)
 }
 
-console.log('\nsubmit_statement crosses 255 bytes at 151 characters. Contract cap is 800.')
+console.log('\nThis probe measures payload reception only; verify GenVM execution with a real accepted write.')
