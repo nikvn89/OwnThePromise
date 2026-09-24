@@ -1,65 +1,48 @@
 # OwnThePromise v1.1 — Frontend Verification
 
-## Current status
+## Verified deployment
 
 ```text
-Local static checks: PASS
+Live dApp: https://own-the-promise.vercel.app
+Network: StudioNet (61999)
+Contract: 0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
 Local production build: PASS
-StudioNet v1.1 runtime: NOT RUN
-Vercel v1.1 runtime: NOT RUN
+Vercel accepted-state reads: PASS
+Vercel transaction confirmation: PASS
 ```
 
-The frontend is pinned to the v1.1 Project deployment:
+## Completed UI checks
 
-```text
-0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
-```
+| UI behavior | Accepted-state evidence | Status |
+|---|---|---|
+| Correct Project contract displayed | `0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc` | PASS |
+| Creator creates a register | lifecycle and negative registers load from accepted state | PASS |
+| Positive semantic result | two records render `AUTHOR_COMMITMENT` and counted | PASS |
+| Negative semantic result | one record renders `NOT_AUTHOR_COMMITMENT`, not counted | PASS |
+| Quota transition | lifecycle register renders `QUOTA_MET` at owned 2/2 | PASS |
+| Freeze transition | accepted state renders `FROZEN` | PASS |
+| Beneficiary acknowledgement | accepted state renders `ACKNOWLEDGED` | PASS |
+| Terminal controls disabled | submit/freeze/acknowledge controls reflect accepted terminal state | PASS |
+| Production confirmation message | shown only after accepted state changed as expected | PASS |
 
-## Local checks
+The first failed acknowledgement attempt was classified as a wallet/RPC submission failure and was not treated as a contract rollback or successful write. After the StudioNet RPC recovered, the beneficiary write finalized and the dApp verified `ACKNOWLEDGED` from accepted state.
+
+## Read-only reviewer path
+
+1. Open https://own-the-promise.vercel.app.
+2. Load `2d543cb37ff399f76cff00975c6ae40461466443d746f28d56dc6779fd57e4c7`; verify `ACKNOWLEDGED`, recorded `2/4`, owned `2/2`.
+3. Open **Statements**; verify two counted `AUTHOR_COMMITMENT` records.
+4. Load `ab9fcd7d5f8cea783e4989c5c73aa75c7f270694381f33821fa40d968392e19e`; verify `OPEN`, recorded `1/2`, owned `0/1`.
+5. Open **Statements**; verify the quoted statement is `NOT_AUTHOR_COMMITMENT` and not counted.
+6. Use the Explorer link to confirm the corresponding transactions.
+
+No wallet signature is required for this reviewer path.
+
+## Local verification
 
 ```bash
 npm ci --ignore-scripts
 npm run check
 ```
 
-Observed locally:
-
-| Check | Status |
-|---|---|
-| Python/TypeScript whitespace parity | PASS |
-| Register ID parity helpers retained | PASS |
-| Normalized statement ID helper present | PASS |
-| Accepted-state reads and matching compile | PASS |
-| Delayed leader rollback lookup compiles | PASS |
-| Beneficiary acknowledgement UI compiles | PASS |
-| Production Vite bundle | PASS |
-
-## Short dApp path
-
-Using the pinned Project contract:
-
-1. Connect creator wallet C on StudioNet.
-2. Create a register with beneficiary B and quota 2; save the transaction hash.
-3. Submit A2 and A4 from `TESTING.md`; verify both accepted verdicts and `QUOTA_MET`.
-4. Freeze from C; verify accepted `FROZEN` state.
-5. Switch to B and acknowledge; verify accepted `ACKNOWLEDGED` state.
-6. Open the statements view and compare both records, IDs, verdicts, and counters with Explorer.
-
-## Runtime checklist
-
-| UI behavior | Evidence required | Status |
-|---|---|---|
-| Correct v1.1 address displayed | address + source hash | NOT RUN |
-| Wallet switches to chain 61999 | screenshot or observation | NOT RUN |
-| Creator/beneficiary authorization follows accepted state | hashes + state | NOT RUN |
-| A2 and A4 render `AUTHOR_COMMITMENT` | hashes + statement views | NOT RUN |
-| `QUOTA_MET` renders after two owned commitments | accepted register view | NOT RUN |
-| Frozen register disables statement submission | freeze hash + UI | NOT RUN |
-| Beneficiary can acknowledge | acknowledge hash + state | NOT RUN |
-| Non-beneficiary cannot acknowledge | rollback hash/reason | NOT RUN |
-| `ACKNOWLEDGED` renders | accepted register view | NOT RUN |
-| Account change clears/reloads role-sensitive state | observation | NOT RUN |
-| Timeout surfaces leader rollback reason | rollback test | NOT RUN |
-| Vercel production matches local behavior | URL + hashes/state | NOT RUN |
-
-Do not mark a row PASS from a toast, a returned hash, or transaction consensus status alone. Verify the intended accepted contract state.
+Do not infer runtime behavior from the local build alone; the completed runtime evidence is recorded in `TESTING.md`.

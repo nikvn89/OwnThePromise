@@ -1,157 +1,143 @@
-# OwnThePromise v1.1 — Test Plan and Evidence Record
+# OwnThePromise v1.1 — Test Plan and Evidence
 
-This document never treats transaction submission, `ACCEPTED` consensus alone, or an older deployment as proof. A runtime row becomes PASS only when it contains the v1.1 transaction hash, intended execution/semantic result, and matching accepted post-state.
+This record distinguishes accepted post-state, successful execution, semantic verdicts, and tests that have not been run. `FINALIZED` or `Accepted` alone is not treated as behavioral proof.
 
 ## Deployment under test
 
 ```text
 Network: StudioNet (61999)
-Contract class: AttributionGate
-Project source file: contract/OwnThePromise.py
-Contract address: 0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
+Contract: 0x4181EDD47D5Bc1FD26D9305F53B71408800768Dc
 Deploy transaction: 0x764f837116f8b0437deb3d5927e51d25d395eb3b5b38317923b3bd0bb4c9e372
-Source SHA-256: 50b56198975167d8ff11328be0f7f5cb01329ad48a884fa27ae5e6bc7c2314d9
-Runtime status: NOT RUN
+Source: contract/OwnThePromise.py
+SHA-256: 50b56198975167d8ff11328be0f7f5cb01329ad48a884fa27ae5e6bc7c2314d9
+Runtime status: CORE PROJECT FLOW PASS
 ```
 
-Deployment evidence observed:
+Deployment and `get_config` were accepted with GenVM `SUCCESS`:
 
 ```text
-Consensus: Accepted
-GenVM result: SUCCESS
-get_config.project_name: OwnThePromise
-get_config.contract_name: AttributionGate
-get_config.version: 1.1
-get_config.attempts_per_required_commitment: 2
-get_config.beneficiary_acknowledgement_required: true
-```
-
-This proves deployment and configuration identity, not the semantic workflow or state transitions below.
-
-Wallet notation:
-
-```text
-C = register creator
-B = beneficiary, different from C
-X = unrelated wallet
+project_name: OwnThePromise
+contract_name: AttributionGate
+version: 1.1
+attempts_per_required_commitment: 2
+beneficiary_acknowledgement_required: true
 ```
 
 ## Local gates
 
 | Gate | Command | Result |
 |---|---|---|
-| Dependency lock | `npm ci --ignore-scripts` | PASS |
-| A1-A5 fixture integrity/leak guard | `python3 tests/ag_kill.py` | PASS |
+| Clean dependency install | `npm ci --ignore-scripts` | PASS |
+| Fixture integrity/leak guard | `python3 tests/ag_kill.py` | PASS |
 | Unicode normalization parity | `node tests/parity.mjs` | PASS |
-| Required source guards | `node tools/verify-project.mjs` | PASS |
-| TypeScript + production build | `npm run build` | PASS |
+| Source and configuration guards | `node tools/verify-project.mjs` | PASS |
+| TypeScript and production build | `npm run build` | PASS |
 
-These are local checks, not StudioNet runtime proof.
+These checks do not replace the runtime evidence below.
 
-## Runtime setup
-
-Create register **A** from C:
+## Runtime proof A — complete two-party lifecycle
 
 ```text
-name = A1-A5 attribution test
-author_role_label = Sponsor
-beneficiary_address = B
-required_commitments = 3
-expected statement_limit = 6
+Register ID: 2d543cb37ff399f76cff00975c6ae40461466443d746f28d56dc6779fd57e4c7
+Name: Beneficiary lifecycle test
+Creator: 0x6276095FAEA15108740445ff277fdA8c304657F4
+Beneficiary: 0x146e44881d35814bA582D265AF5b97ef2695ec8e
+Author role: Sponsor
+Required: 2
+Statement limit: 4
 ```
 
-Create register **B** from C for the complete lifecycle:
+| Step | Exact input or method | Transaction | Execution / consensus | Accepted post-state |
+|---|---|---|---|---|
+| Create | `Beneficiary lifecycle test`, `Sponsor`, beneficiary above, quota 2 | `0x7c56c9fba9c503f628f2a7689ab826c5cc4fd8b992dcae58da59b3ae0edc1a4a` | `SUCCESS` / `Accepted` / `Finalized` | `OPEN`, recorded 0, owned 0, limit 4 |
+| Submit 1 | `The Sponsor shall release the final assay results to investigators before database lock.` | `0x2cbacd0162ed3d6570b08226cae3f11d8f264f032194aaebf080ed84eeeedab2` | `AUTHOR_COMMITMENT`; `SUCCESS` / `Accepted` / `Finalized` | recorded 1, owned 1 |
+| Submit 2 | `We will release the final assay results to investigators before database lock.` | `0x26d8e69ff1fc059323d23ba52780e3217e658a398f9e8f1788679823e8a44bde` | `AUTHOR_COMMITMENT`; `SUCCESS` / `Accepted` / `Finalized` | `QUOTA_MET`, recorded 2, owned 2 |
+| Freeze | `freeze_register(register_id)` | `0xbd5626d4c1edccf391d07940f60c52dc5a6ba9594e2f3fa6980152686849340d` | `SUCCESS` / `Accepted` / `Finalized` | `FROZEN`, counters unchanged |
+| Acknowledge | beneficiary calls `acknowledge_register(register_id)` | `0x5d97ca93ebf0dec7840120a059ee517e6d763855cd961f0563e938bfea9d8e67` | `SUCCESS` / `Accepted` / `Finalized` | `ACKNOWLEDGED`, `acknowledged=true` |
+
+Accepted read after finality:
 
 ```text
-name = Beneficiary lifecycle test
-author_role_label = Sponsor
-beneficiary_address = B
-required_commitments = 2
-expected statement_limit = 4
-```
-
-Create register **C** from C for the dynamic attempt limit:
-
-```text
-name = Dynamic limit test
-author_role_label = Sponsor
-beneficiary_address = B
-required_commitments = 1
-expected statement_limit = 2
-```
-
-Record the transaction hash, register ID, and accepted `get_register` result for each successful creation.
-
-## A1-A5 semantic kill-test
-
-Submit these exact statements to register A, in order:
-
-| ID | Exact statement | Expected verdict | TX hash | Accepted post-state | Status |
-|---|---|---|---|---|---|
-| A1 | We understand the central laboratory will release the final assay results to investigators before database lock. | `NOT_AUTHOR_COMMITMENT` | PENDING | PENDING | NOT RUN |
-| A2 | The Sponsor shall release the final assay results to investigators before database lock. | `AUTHOR_COMMITMENT` | PENDING | PENDING | NOT RUN |
-| A3 | We are on track to release the final assay results well before database lock. | `NOT_AUTHOR_COMMITMENT` | PENDING | PENDING | NOT RUN |
-| A4 | We will release the final assay results to investigators before database lock. | `AUTHOR_COMMITMENT` | PENDING | PENDING | NOT RUN |
-| A5 | Assay results are normally released to investigators before database lock. | `NOT_AUTHOR_COMMITMENT` | PENDING | PENDING | NOT RUN |
-
-Expected final A state:
-
-```text
-state = OPEN
-recorded_count = 5
+state = ACKNOWLEDGED
+recorded_count = 2
 owned_count = 2
-required_commitments = 3
-statement_limit = 6
+required_commitments = 2
+statement_limit = 4
+frozen = true
+acknowledged = true
 ```
 
-This set tests the rubric claim that grammatical person alone does not determine attribution. All five rows must match; a plausible verdict is insufficient without a transaction hash and accepted state.
-
-## Full lifecycle
-
-Use register B. Submit A2 and A4 exactly. Both must return `AUTHOR_COMMITMENT`; accepted state must become `QUOTA_MET` with `recorded_count=2` and `owned_count=2`. Then:
-
-| Action | Caller | Expected result | TX hash | Verified post-state | Status |
-|---|---|---|---|---|---|
-| Freeze B | C | GenVM success; `FROZEN` | PENDING | PENDING | NOT RUN |
-| Submit after frozen | C | rollback `Register is frozen` | PENDING | counts unchanged | NOT RUN |
-| Freeze twice | C | rollback `Register is already frozen` | PENDING | remains `FROZEN` | NOT RUN |
-| Acknowledge B | X | rollback `Only register beneficiary...` | PENDING | `acknowledged=false` | NOT RUN |
-| Acknowledge B | B | GenVM success; `ACKNOWLEDGED` | PENDING | PENDING | NOT RUN |
-| Acknowledge twice | B | rollback `Register is already acknowledged` | PENDING | remains `ACKNOWLEDGED` | NOT RUN |
-
-## Negative and invariant paths
-
-| Test | Expected result | TX hash | Status |
-|---|---|---|---|
-| Create with zero/invalid beneficiary | rollback; no register | PENDING | NOT RUN |
-| Create with beneficiary equal to creator | rollback; no register | PENDING | NOT RUN |
-| Non-creator submit | rollback `Only register creator...` | PENDING | NOT RUN |
-| Non-creator freeze | rollback `Only register creator...` | PENDING | NOT RUN |
-| Freeze A before quota | rollback; A remains OPEN | PENDING | NOT RUN |
-| Beneficiary acknowledge A before freeze | rollback `Only a frozen register...` | PENDING | NOT RUN |
-| Empty statement | rollback; counts unchanged | PENDING | NOT RUN |
-| 801-character statement | rollback; counts unchanged | PENDING | NOT RUN |
-| Role label containing newline | rollback; no register | PENDING | NOT RUN |
-| Statement containing `DECISION RULES` | rollback reserved token; counts unchanged | PENDING | NOT RUN |
-| Statement containing `<UNTRUSTED_STATEMENT>` | rollback reserved token; counts unchanged | PENDING | NOT RUN |
-| Whitespace-only variant of A2 on A | rollback `Statement already exists`; counts unchanged | PENDING | NOT RUN |
-| Third distinct statement on C after two accepted attempts | rollback `Register statement limit reached` | PENDING | NOT RUN |
-
-Malformed model output is guarded in source and local verification. It must raise `Invalid semantic output` before `StatementRecord` or counter writes can persist. Do not claim a live PASS unless the deployed environment provides a controlled way to induce and verify this path.
-
-## Long write
-
-Submit one valid statement longer than the historical 255-byte serialized payload boundary. A probe result alone does not pass this test.
+## Runtime proof B — quoted commitment does not count
 
 ```text
-Transaction hash: PENDING
-GenVM result: PENDING
-Semantic verdict: PENDING
-Accepted statement record: PENDING
-Accepted register counters: PENDING
-Status: NOT RUN
+Register ID: ab9fcd7d5f8cea783e4989c5c73aa75c7f270694381f33821fa40d968392e19e
+Statement ID: c97fc12f9358ee1f68d7be29e2693e584b32954a8fa938141cf7a1197c6a1ec6
+Name: Negative attribution test
+Creator: 0x6276095FAEA15108740445ff277fdA8c304657F4
+Beneficiary: 0x146e44881d35814bA582D265AF5b97ef2695ec8e
+Author role: Sponsor
+Required: 1
+Statement limit: 2
 ```
 
-## Completion rule
+Create transaction:
 
-Before submission, replace every successful runtime `PENDING` with an explorer transaction hash and the matching accepted state. For rollback tests, record the transaction hash and exact leader rollback reason. If any row is not executed, leave it `NOT RUN`; never upgrade it from source inspection alone.
+```text
+0xbbd5f894c9756bd5df0b11eb35623a1cebdd458d0892e57d2791a9ee4518b8c2
+```
+
+Exact statement:
+
+```text
+We understand the central laboratory will release the final assay results to investigators before database lock.
+```
+
+Submit transaction:
+
+```text
+0x3831eaa52c8beaff424efc0cd8fd1449a88675251115b99e7bb651b554d1f926
+```
+
+Verified result:
+
+```text
+GenVM = SUCCESS
+Consensus = Accepted
+Lifecycle = Finalized
+verdict = NOT_AUTHOR_COMMITMENT
+counted = false
+state = OPEN
+recorded_count = 1
+owned_count = 0
+required_commitments = 1
+statement_limit = 2
+```
+
+This is the decisive counterexample for the product claim: the statement reports another party's future action and does not advance the Sponsor's commitment quota.
+
+## Runtime scope not claimed
+
+The following adversarial or authorization-negative writes were not executed on this Project deployment and are not claimed as live PASS:
+
+| Case | Expected contract result | Live status |
+|---|---|---|
+| Non-creator submit | rollback `Only register creator may submit statements` | NOT RUN |
+| Non-creator freeze | rollback `Only register creator may freeze the register` | NOT RUN |
+| Non-beneficiary acknowledge | rollback `Only register beneficiary may acknowledge the register` | NOT RUN |
+| Freeze before quota | rollback; state remains `OPEN` | NOT RUN |
+| Submit after freeze | rollback `Register is frozen` | NOT RUN |
+| Duplicate statement | rollback `Statement already exists` | NOT RUN |
+| Exceed dynamic statement limit | rollback `Register statement limit reached` | NOT RUN |
+| Reserved prompt token | rollback before semantic execution | NOT RUN |
+| Invalid model output | rollback before record/counter persistence | NOT RUN |
+
+The source guards and local verification cover their intended invariants, but this table deliberately does not upgrade them to runtime PASS.
+
+## Short reviewer path
+
+1. Open https://own-the-promise.vercel.app and verify StudioNet plus contract `0x4181...0768Dc`.
+2. Paste lifecycle register ID `2d543cb37ff399f76cff00975c6ae40461466443d746f28d56dc6779fd57e4c7` and load accepted state.
+3. Verify `ACKNOWLEDGED`, recorded `2/4`, owned `2/2`, and both `AUTHOR_COMMITMENT` statement records.
+4. Paste negative register ID `ab9fcd7d5f8cea783e4989c5c73aa75c7f270694381f33821fa40d968392e19e`.
+5. Verify `OPEN`, recorded `1/2`, owned `0/1`, and verdict `NOT_AUTHOR_COMMITMENT`.
+6. Open the contract in Explorer and confirm the listed transactions are finalized with GenVM `SUCCESS` and consensus `Accepted`.
