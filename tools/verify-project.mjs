@@ -52,4 +52,21 @@ for (const fragment of ["computeStatementId", "pyCollapse", "acknowledge_registe
   if (!app.includes(fragment)) throw new Error(`App wiring missing: ${fragment}`);
 }
 
+for (const fragment of [
+  'useState("Clinical assay commitments")',
+  'useState("Sponsor")',
+  'useState("3")',
+  'useState(\n    "We understand the central laboratory will release',
+]) {
+  if (app.includes(fragment)) throw new Error(`Prefilled demo input is not allowed: ${fragment}`);
+}
+for (const fragment of [
+  'placeholder="e.g. Clinical assay commitments"',
+  'placeholder="e.g. Sponsor"',
+  'placeholder="1-10"',
+  'placeholder="Enter one statement for GenLayer to classify."',
+]) {
+  if (!app.includes(fragment)) throw new Error(`Missing non-data placeholder: ${fragment}`);
+}
+
 console.log("PASS OwnThePromise v1.1 static project verification");
